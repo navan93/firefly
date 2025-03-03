@@ -1,6 +1,7 @@
 {
     "files.associations": {
-        "device.h": "c"
+        "device.h": "c",
+        "pfs154.h": "c"
     },
     "makefile.makefilePath": "fw/src/Makefile",
     "C_Cpp.default.compilerPath": "/usr/local/bin/sdcc"

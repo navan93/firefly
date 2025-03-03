@@ -3,16 +3,21 @@
     {
       "name": "Linux",
       "includePath": [
-        "${workspaceFolder}/fw/include/**"
+        "${workspaceFolder}/fw/include/**",
+        "/usr/local/share/sdcc/include"
       ],
       "defines": [
         "F_CPU",
         "PFS154",
-        "TARGET_VDD_MV"
+        "TARGET_VDD_MV",
+        "__sfr=unsigned char",
+        "__sbit=int",
+        "__at(a)= "
+
       ],
       "compilerPath": "/usr/local/bin/sdcc",
-      "cStandard": "c11",
-      "intelliSenseMode": "linux-gcc-x64"
+      "cStandard": "c99",
+      "intelliSenseMode": "gcc-x86"
     }
   ],
   "version": 4
