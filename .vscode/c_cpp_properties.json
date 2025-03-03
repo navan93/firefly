@@ -1,0 +1,19 @@
+{
+  "configurations": [
+    {
+      "name": "Linux",
+      "includePath": [
+        "${workspaceFolder}/fw/include/**"
+      ],
+      "defines": [
+        "F_CPU",
+        "PFS154",
+        "TARGET_VDD_MV"
+      ],
+      "compilerPath": "/usr/local/bin/sdcc",
+      "cStandard": "c11",
+      "intelliSenseMode": "linux-gcc-x64"
+    }
+  ],
+  "version": 4
+}
