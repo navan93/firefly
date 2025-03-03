@@ -23,7 +23,7 @@
 #if defined(PWM_8)
   #define LED_BIT             3   // LED is placed on the PA3 pin (Port A, Bit 3), which is also TM2PWM
 #else
-  #define LED_BIT             4   // LED is placed on the PA4 pin (Port A, Bit 4), which is also PG1PWM
+  #define LED_BIT             3   // LED is placed on the PA3 pin (Port A, Bit 3), which is also PG2PWM
 #endif
 
 // Main program
@@ -37,12 +37,12 @@ void main() {
   TM2C = (uint8_t)(TM2C_INVERT_OUT | TM2C_MODE_PWM | TM2C_OUT_PA3 | TM2C_CLK_IHRC);
   TM2S = 0x00;                    // No pre-scaler, 8-bit
 #elif defined(PWM_11_FULL)
-  PWMG1CUBL = PWM_MAX << 5;       // Set the PWM upper bound (lower 3 bits)
-  PWMG1CUBH = PWM_MAX >> 3;       // (upper 5 bits)
-  PWMG1DTL = 0x00;                // Clear the LED PWM duty value
-  PWMG1DTH = 0x00;
-  PWMG1C = (uint8_t)(PWMG1C_ENABLE | PWMG1C_INVERT_OUT | PWMG1C_OUT_PA4 | PWMG1C_CLK_IHRC);
-  PWMG1S = 0x00;                  // No pre-scaler
+  PWMG2CUBL = PWM_MAX << 5;       // Set the PWM upper bound (lower 3 bits)
+  PWMG2CUBH = PWM_MAX >> 3;       // (upper 5 bits)
+  PWMG2DTL = 0x00;                // Clear the LED PWM duty value
+  PWMG2DTH = 0x00;
+  PWMG2C = (uint8_t)(PWMG2C_ENABLE | PWMG2C_INVERT_OUT | PWMG2C_OUT_PA3 | PWMG2C_CLK_IHRC);
+  PWMG2S = 0x00;                  // No pre-scaler
 #else
   PWMGCUBL = PWM_MAX << 5;        // Set the PWM upper bound (lower 3 bits)
   PWMGCUBH = PWM_MAX >> 3;        // (upper 5 bits)
@@ -61,8 +61,8 @@ void main() {
       #if defined(PWM_8)
         TM2B = fadeValue;         // Set the LED PWM duty value
       #else
-        PWMG1DTL = fadeValue << 5;  // Set the LED PWM duty value (lower 3 bits)
-        PWMG1DTH = fadeValue >> 3;  // (upper 8 bits)
+        PWMG2DTL = fadeValue << 5;  // Set the LED PWM duty value (lower 3 bits)
+        PWMG2DTH = fadeValue >> 3;  // (upper 8 bits)
       #endif
       _delay_ms(30);              // wait for 30 milliseconds to see the dimming effect
     }
@@ -72,8 +72,8 @@ void main() {
       #if defined(PWM_8)
         TM2B = fadeValue;         // Set the LED PWM duty value
       #else
-        PWMG1DTL = fadeValue << 5;  // Set the LED PWM duty value (lower 3 bits)
-        PWMG1DTH = fadeValue >> 3;  // (upper 8 bits)
+        PWMG2DTL = fadeValue << 5;  // Set the LED PWM duty value (lower 3 bits)
+        PWMG2DTH = fadeValue >> 3;  // (upper 8 bits)
       #endif
       _delay_ms(30);              // wait for 30 milliseconds to see the dimming effect
     }
