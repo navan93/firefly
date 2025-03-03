@@ -1,6 +1,6 @@
-[submodule "include/pdk"]
+[submodule "fw/include/pdk"]
 	path = fw/include/pdk
 	url = https://github.com/free-pdk/pdk-includes.git
-[submodule "include/easy-pdk"]
+[submodule "fw/include/easy-pdk"]
 	path = fw/include/easy-pdk
 	url = https://github.com/free-pdk/easy-pdk-includes.git
