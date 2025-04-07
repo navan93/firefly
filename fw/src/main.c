@@ -2,6 +2,17 @@
   FadeLED
 
   Uses PWM to fade an LED in and out, repeatedly.
+
+  PFS154 pinout
+
+                      +-\/-+
+                VDD  1|    |8  GND
+             PA7/X1  2|    |7  PA0/AD10/CO/INT0/PG0PWM
+             PA6/X2  3|    |6  PA4/AD9/CIN+/CIN1-/INT1/PG1PWM
+   PA5/PRSTB/PG2PWM  4|    |5  PA3/AD8/CIN0-/TM2PWM/PG2PWM
+                      +----+
+
+  https://www.padauk.com.cn/upload/doc/PFS154%20datasheet_EN_V107_20240912.pdf
 */
 
 #include <stdint.h>
@@ -9,74 +20,134 @@
 #include "auto_sysclock.h"
 #include "startup.h"
 #include "delay.h"
+#include "bsp.h"
+#include "serial.h"
 
 #define PWM_MAX               255
 
-// Define which type of PWM to use
-#if defined(PWMG1CUBL)            // Full 11-bit PWM:   PFS154,PMS154C
-  #define PWM_11_FULL
-#else                             // 8-bit PWM:         PFS172,PMS15A,PMS150C,PMC171B
-  #define PWM_8
-#endif
+// ALS is connected in active low configuration
+#define turn_als_on()         (PA &= ~(1 << ALS_PWR_PIN))
+#define turn_als_off()        (PA |= (1 << ALS_PWR_PIN))
 
-// Define which pin the LED is on (current sink configuration)
-#if defined(PWM_8)
-  #define LED_BIT             3   // LED is placed on the PA3 pin (Port A, Bit 3), which is also TM2PWM
-#else
-  #define LED_BIT             3   // LED is placed on the PA3 pin (Port A, Bit 3), which is also PG2PWM
-#endif
+// LED is connected in active low configuration
+#define turn_led_on()         (PA &= ~(1 << LED_PIN))
+#define turn_led_off()        (PA |= (1 << LED_PIN))
+
+// ALS will read high in dark, so define helper for better readability below
+#define isDark()    (PA & (1 << ALS_SENSE_PIN))
+
+void interrupt(void) __interrupt(0) {
+  if (INTRQ & INTRQ_TM2) {      // TM2 interrupt request?
+    INTRQ &= ~INTRQ_TM2;        // Mark TM2 interrupt request processed
+    serial_irq_handler();       // Process next Serial Bit
+  }
+}
+
+static inline void fade_led(void)
+{
+  uint8_t fadeValue;
+
+  // Fade in from min to max in increments of 5
+  for (fadeValue = 0; fadeValue < PWM_MAX; fadeValue += 5) {
+    TM2B = fadeValue;         // Set the LED PWM duty value
+    _delay_ms(30);              // wait for 30 milliseconds to see the dimming effect
+  }
+
+  // Fade out from max to min in increments of 5
+  for (fadeValue = PWM_MAX; fadeValue > 0; fadeValue -= 5) {
+    TM2B = fadeValue;         // Set the LED PWM duty value
+    _delay_ms(30);              // wait for 30 milliseconds to see the dimming effect
+  }
+}
+
+static inline void pwm_init(void)
+{
+  TM2B = 0x00;                    // Clear the LED PWM duty value
+  TM2C = (uint8_t)(TM2C_INVERT_OUT | TM2C_MODE_PWM | TM2C_OUT_PA3 | TM2C_CLK_IHRC);
+  TM2S = 0x00;                    // No pre-scaler, 8-bit
+}
+
+static inline void comparator_init(void)
+{
+  // page 67 datasheet
+  GPCC = (uint8_t)(GPCC_COMP_PLUS_VINT_R | GPCC_COMP_MINUS_PA4 | GPCC_COMP_ENABLE);
+  // bit 7 enable comparator
+  // bit 6 plus input < minus input
+  // bit 5 result output NOT sampled by TM2_CLK
+  // bit 4 polarity is NOT inversed
+  // bit 3-1 000 : PA3 selected as -ve input
+  // bit 0 internal voltage set as +ve input
+
+  // GPCS = (uint8_t)(GPCS_COMP_RANGE3);
+  // bit 7 output to PA0 disabled
+  // bit 6 reserved
+  // bit 5 high range selected
+  // bit 4 low range selected
+  // bit 3-0 Selection the internal reference voltage level of comparator
+  // 0000 (lowest) ~ 1111 (highest) as a fraction of vdd
+}
+
+/* ALS pulls down on PA4 when light is detected,
+   with PA4 connected to comparator +ve input, and
+   Resistor ladder is connected to comparator -ve input
+   we should sweep the ladder from high to low to get the value
+*/
+uint8_t get_als_value(void)
+{
+  uint8_t als_value = 0x00;
+
+  while(als_value <= 0x0F) {
+    GPCS = (uint8_t)(GPCS_COMP_RANGE4 | als_value);
+    _delay_ms(1);
+    if (GPCC & GPCC_COMP_RESULT_POSITIVE) { // PA4 < Vref
+      break;;
+    }
+    als_value++;
+  }
+  return als_value;
+}
 
 // Main program
 void main() {
 
   // Initialize hardware
-  PAC |= (1 << LED_BIT);          // Set LED as output (all pins are input by default)
+  PAC |= (1 << LED_PIN) | (1 << ALS_PWR_PIN);          // Set LED and ALS power pins as output (all pins are input by default)
 
-#if defined(PWM_8)
-  TM2B = 0x00;                    // Clear the LED PWM duty value
-  TM2C = (uint8_t)(TM2C_INVERT_OUT | TM2C_MODE_PWM | TM2C_OUT_PA3 | TM2C_CLK_IHRC);
-  TM2S = 0x00;                    // No pre-scaler, 8-bit
-#elif defined(PWM_11_FULL)
-  PWMG2CUBL = PWM_MAX << 5;       // Set the PWM upper bound (lower 3 bits)
-  PWMG2CUBH = PWM_MAX >> 3;       // (upper 5 bits)
-  PWMG2DTL = 0x00;                // Clear the LED PWM duty value
-  PWMG2DTH = 0x00;
-  PWMG2C = (uint8_t)(PWMG2C_ENABLE | PWMG2C_INVERT_OUT | PWMG2C_OUT_PA3 | PWMG2C_CLK_IHRC);
-  PWMG2S = 0x00;                  // No pre-scaler
-#else
-  PWMGCUBL = PWM_MAX << 5;        // Set the PWM upper bound (lower 3 bits)
-  PWMGCUBH = PWM_MAX >> 3;        // (upper 5 bits)
-  PWMG1DTL = 0x00;                // Clear the LED PWM duty value
-  PWMG1DTH = 0x00;
-  PWMGCLK = (uint8_t)(PWMGCLK_PWMG_ENABLE | PWMGCLK_CLK_IHRC);
-  PWMG1C = (uint8_t)(PWMG1C_INVERT_OUT | PWMG1C_OUT_PWMG1 | PWMG1C_OUT_PA4);
-#endif
+  // PADIER |= (1 << ALS_SENSE_PIN);       // Enable ALS as digital input
+  // PAPH |= (1 << ALS_SENSE_PIN);         // Enable pull-up resistor for ALS
+
+  // pwm_init();                                          // Initialize the PWM
+  comparator_init();
+
+  // Leave ALS ON
+  turn_als_on();
+
+  serial_setup();                 // Initialize Serial engine
+  INTRQ = 0;
+  __engint();                     // Enable global interrupts
+
+  serial_println("Firefly Initialized");
+
 
   // Main processing loop
   while (1) {
-    uint8_t fadeValue;
 
-    // Fade in from min to max in increments of 5
-    for (fadeValue = 0; fadeValue < PWM_MAX; fadeValue += 5) {
-      #if defined(PWM_8)
-        TM2B = fadeValue;         // Set the LED PWM duty value
-      #else
-        PWMG2DTL = fadeValue << 5;  // Set the LED PWM duty value (lower 3 bits)
-        PWMG2DTH = fadeValue >> 3;  // (upper 8 bits)
-      #endif
-      _delay_ms(30);              // wait for 30 milliseconds to see the dimming effect
+    uint8_t als_value = get_als_value();
+
+
+    if (als_value >  10) {
+      turn_led_on();
+      // serial_println("Is Dark");
+    }
+    else {
+      turn_led_off();
+      // serial_println("Not Dark");
     }
 
-    // Fade out from max to min in increments of 5
-    for (fadeValue = PWM_MAX; fadeValue > 0; fadeValue -= 5) {
-      #if defined(PWM_8)
-        TM2B = fadeValue;         // Set the LED PWM duty value
-      #else
-        PWMG2DTL = fadeValue << 5;  // Set the LED PWM duty value (lower 3 bits)
-        PWMG2DTH = fadeValue >> 3;  // (upper 8 bits)
-      #endif
-      _delay_ms(30);              // wait for 30 milliseconds to see the dimming effect
-    }
+    als_value = (als_value < 10) ? (als_value + '0') : (als_value - 10 + 'A');
+    serial_println(&als_value);
+
+    _delay_ms(1000);
   }
 }
 
