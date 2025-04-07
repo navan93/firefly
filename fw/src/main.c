@@ -22,7 +22,11 @@
 #include "delay.h"
 #include "bsp.h"
 #include "serial.h"
+// #include "util.h"
+#include "millis.h"
 
+
+#define sleep()               __asm stopexe __endasm;
 #define PWM_MAX               255
 
 // ALS is connected in active low configuration
@@ -31,15 +35,28 @@
 
 // LED is connected in active low configuration
 #define turn_led_on()         (PA &= ~(1 << LED_PIN))
-#define turn_led_off()        (PA |= (1 << LED_PIN))
+#define turn_led_off()        (PA |=  (1 << LED_PIN))
+#define toggleLed()           (PA ^=  (1 << LED_PIN))
+
+// Interval at which to blink the LED (milliseconds)
+#define BLINK_INTERVAL      2
 
 // ALS will read high in dark, so define helper for better readability below
 #define isDark()    (PA & (1 << ALS_SENSE_PIN))
+
+uint32_t previousMillis;          // The last time the LED was updated
+
 
 void interrupt(void) __interrupt(0) {
   if (INTRQ & INTRQ_TM2) {      // TM2 interrupt request?
     INTRQ &= ~INTRQ_TM2;        // Mark TM2 interrupt request processed
     serial_irq_handler();       // Process next Serial Bit
+  }
+
+  if (INTRQ & INTRQ_T16) {        // T16 interrupt request?
+    INTRQ &= ~INTRQ_T16;          // Mark T16 interrupt request processed
+    // T16M = T16M_CLK_DISABLE;
+    millis_irq_handler();
   }
 }
 
@@ -58,6 +75,15 @@ static inline void fade_led(void)
     TM2B = fadeValue;         // Set the LED PWM duty value
     _delay_ms(30);              // wait for 30 milliseconds to see the dimming effect
   }
+}
+
+static inline void sleep_ms(uint16_t ms)
+{
+  (void)ms;
+  T16M = (uint8_t)(T16M_CLK_ILRC | T16M_CLK_DIV16 | T16M_INTSRC_10BIT);
+  T16C = 0;
+  INTEN |= INTEN_T16;
+  sleep();
 }
 
 static inline void pwm_init(void)
@@ -90,7 +116,7 @@ static inline void comparator_init(void)
 /* ALS pulls down on PA4 when light is detected,
    with PA4 connected to comparator +ve input, and
    Resistor ladder is connected to comparator -ve input
-   we should sweep the ladder from high to low to get the value
+   we should sweep the ladder from low to hih to get the value
 */
 uint8_t get_als_value(void)
 {
@@ -117,37 +143,44 @@ void main() {
   // PAPH |= (1 << ALS_SENSE_PIN);         // Enable pull-up resistor for ALS
 
   // pwm_init();                                          // Initialize the PWM
-  comparator_init();
+  // comparator_init();
+  millis_setup();
 
   // Leave ALS ON
   turn_als_on();
 
-  serial_setup();                 // Initialize Serial engine
+  // serial_setup();                 // Initialize Serial engine
   INTRQ = 0;
   __engint();                     // Enable global interrupts
 
-  serial_println("Firefly Initialized");
+  // serial_println("Firefly Initialized");
 
 
   // Main processing loop
   while (1) {
 
-    uint8_t als_value = get_als_value();
+    uint32_t currentMillis = millis();
+    // if (currentMillis - previousMillis > BLINK_INTERVAL) {
+      toggleLed();
+      // previousMillis += BLINK_INTERVAL;
+    // }
+    sleep();
+    // uint8_t als_value = get_als_value();
 
 
-    if (als_value >  10) {
-      turn_led_on();
-      // serial_println("Is Dark");
-    }
-    else {
-      turn_led_off();
-      // serial_println("Not Dark");
-    }
+    // if (als_value >  10) {
+    //   turn_led_on();
+    //   // serial_println("Is Dark");
+    // }
+    // else {
+    //   turn_led_off();
+    //   // serial_println("Not Dark");
+    // }
 
-    als_value = (als_value < 10) ? (als_value + '0') : (als_value - 10 + 'A');
-    serial_println(&als_value);
-
-    _delay_ms(1000);
+    // als_value = (als_value < 10) ? (als_value + '0') : (als_value - 10 + 'A');
+    // serial_println(&als_value);
+    // toggleLed();
+    // sleep_ms(10);
   }
 }
 

@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define US_PER_TICK      32
+#define US_PER_TICK      500
 
 volatile uint8_t _ticks;                        // Increments every 32 uS
 volatile uint32_t _millis;                      // Number of elapsed milliseconds (rolls over every 49.71 days)
@@ -12,7 +12,7 @@ void millis_setup() {
   // Setup timer16 (T16) interrupt to tick every 32 uS
   // Note: This assumes the internal IHRC oscillator is running and has been calibrated to the normal 16MHz and not some weird frequency.
   // The system clock can still be set to use a divider, or to use ILRC or EOSC (as long as IHRC is still enabled).
-  T16M = (uint8_t)(T16M_CLK_IHRC | T16M_CLK_DIV1 | T16M_INTSRC_8BIT);
+  T16M = (uint8_t)(T16M_CLK_ILRC | T16M_CLK_DIV64 | T16M_INTSRC_12BIT);
   T16C = 0;
   INTEN |= INTEN_T16;
 }
