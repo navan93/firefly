@@ -14,7 +14,7 @@ void millis_setup() {
   // The system clock can still be set to use a divider, or to use ILRC or EOSC (as long as IHRC is still enabled).
   T16M = (uint8_t)(T16M_CLK_ILRC | T16M_CLK_DIV64 | T16M_INTSRC_12BIT);
   T16C = 0;
-  INTEN |= INTEN_T16;
+  // INTEN |= INTEN_T16;
 }
 
 uint32_t millis() {

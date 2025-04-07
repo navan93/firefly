@@ -1,6 +1,6 @@
 
 DEVICE = PFS154
-F_CPU = 8000000
+F_CPU = 55000
 TARGET_VDD_MV = 3300
 TARGET_VDD = 3.3
 
@@ -49,7 +49,7 @@ size: build
 	@stat -L --printf "Size of $(OUTPUT_NAME).bin: %s bytes\n" $(OUTPUT).bin
 
 program: size
-	$(EASYPDKPROG) -n $(DEVICE) write $(OUTPUT).ihx
+	$(EASYPDKPROG) -n $(DEVICE) write $(OUTPUT).ihx --allowsecfuse
 
 run:
 	$(EASYPDKPROG) -r $(TARGET_VDD) start

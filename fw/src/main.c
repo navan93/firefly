@@ -13,6 +13,7 @@
                       +----+
 
   https://www.padauk.com.cn/upload/doc/PFS154%20datasheet_EN_V107_20240912.pdf
+  LowPowerLEDflasher.c - https://gist.github.com/cpldcpu/603bf71c9c6afcffa46dd7c459e27efc
 */
 
 #include <stdint.h>
@@ -134,7 +135,18 @@ uint8_t get_als_value(void)
 }
 
 // Main program
-void main() {
+void main()
+{
+  PADIER = 0; // disable pins as wakeup source
+  PBDIER = 0; // Also port B needs to be disabled even if it is
+              // not connected to the outside of the package.
+              // Touching the package can introduce glitches and wake
+              // up the device
+
+  MISC = MISC_FAST_WAKEUP_ENABLE;
+      // Enable faster wakeup (45 clocks instead of 3000)
+      // This is important to not waste energy, as 40µA bias
+      // is already added during wakeup time
 
   // Initialize hardware
   PAC |= (1 << LED_PIN) | (1 << ALS_PWR_PIN);          // Set LED and ALS power pins as output (all pins are input by default)
@@ -151,7 +163,8 @@ void main() {
 
   // serial_setup();                 // Initialize Serial engine
   INTRQ = 0;
-  __engint();                     // Enable global interrupts
+  // __engint();                     // Enable global interrupts
+  INTEN = 0;
 
   // serial_println("Firefly Initialized");
 
@@ -159,9 +172,11 @@ void main() {
   // Main processing loop
   while (1) {
 
-    uint32_t currentMillis = millis();
+    // uint32_t currentMillis = millis();
     // if (currentMillis - previousMillis > BLINK_INTERVAL) {
-      toggleLed();
+    turn_led_on();
+    _delay_ms(500);
+    turn_led_off();
       // previousMillis += BLINK_INTERVAL;
     // }
     sleep();
@@ -187,10 +202,13 @@ void main() {
 // Startup code - Setup/calibrate system clock
 unsigned char STARTUP_FUNCTION(void) {
 
+  PDK_SET_FUSE(FUSE_IO_DRV_LOW);	// Set output driving strength to low
+
   // Initialize the system clock (CLKMD register) with the IHRC, ILRC, or EOSC clock source and correct divider.
   // The AUTO_INIT_SYSCLOCK() macro uses F_CPU (defined in the Makefile) to choose the IHRC or ILRC clock source and divider.
   // Alternatively, replace this with the more specific PDK_SET_SYSCLOCK(...) macro from pdk/sysclock.h
   AUTO_INIT_SYSCLOCK();
+  PDK_DISABLE_IHRC();
 
   // Insert placeholder code to tell EasyPdkProg to calibrate the IHRC or ILRC internal oscillator.
   // The AUTO_CALIBRATE_SYSCLOCK(...) macro uses F_CPU (defined in the Makefile) to choose the IHRC or ILRC oscillator.
