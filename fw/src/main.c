@@ -120,6 +120,7 @@ uint8_t get_als_value(void)
   uint8_t als_value = 0x00;
 
   turn_als_on();
+  GPCC = (uint8_t)(GPCC_COMP_PLUS_VINT_R | GPCC_COMP_MINUS_PA4 | GPCC_COMP_ENABLE);
 
   while(als_value <= 0x0F) {
     GPCS = (uint8_t)(GPCS_COMP_RANGE4 | als_value);
@@ -131,6 +132,7 @@ uint8_t get_als_value(void)
   }
 
   turn_als_off();
+  GPCC = 0x00;
 
   return als_value;
 }
@@ -138,9 +140,9 @@ uint8_t get_als_value(void)
 static void flash_led(void)
 {
   turn_led_on();
-  LPM_SLEEP(74_47MS);
+  LPM_SLEEP(75MS);
   turn_led_off();
-  LPM_SLEEP(148_95MS);
+  LPM_SLEEP(150MS);
 }
 
 // Main program
@@ -164,7 +166,7 @@ void main()
   // PAPH |= (1 << ALS_SENSE_PIN);         // Enable pull-up resistor for ALS
 
   // pwm_init();                                          // Initialize the PWM
-  comparator_init();
+  // comparator_init();
 
   turn_als_off();
   turn_led_off();
@@ -193,7 +195,7 @@ void main()
       // turn_led_off();
     //   // serial_println("Not Dark");
     // }
-    LPM_SLEEP(2383_13MS);
+    LPM_SLEEP(4800MS);
 
     // als_value = (als_value < 10) ? (als_value + '0') : (als_value - 10 + 'A');
     // serial_println(&als_value);
