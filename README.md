@@ -24,3 +24,8 @@ make size (also calls build)
 make program (also calls size which calls build)
 make run
 ```
+
+## Troubleshooting
+
+If the programming fails saying `Erasing IC... FPDK_ERROR: command ack failed / wrong icid`, it is because the IC is not detected. To fix this, try the following:
+remove the dev board from the programmer and then unplug and replug the programmer.
