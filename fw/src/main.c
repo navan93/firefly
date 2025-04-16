@@ -23,8 +23,6 @@
 #include "delay.h"
 #include "bsp.h"
 #include "serial.h"
-// #include "util.h"
-#include "millis.h"
 
 
 #define sleep()               __asm stopexe __endasm;
@@ -45,9 +43,6 @@
 // ALS will read high in dark, so define helper for better readability below
 #define isDark()    (PA & (1 << ALS_SENSE_PIN))
 
-uint32_t previousMillis;          // The last time the LED was updated
-
-
 void interrupt(void) __interrupt(0) {
   if (INTRQ & INTRQ_TM2) {      // TM2 interrupt request?
     INTRQ &= ~INTRQ_TM2;        // Mark TM2 interrupt request processed
@@ -57,7 +52,6 @@ void interrupt(void) __interrupt(0) {
   if (INTRQ & INTRQ_T16) {        // T16 interrupt request?
     INTRQ &= ~INTRQ_T16;          // Mark T16 interrupt request processed
     // T16M = T16M_CLK_DISABLE;
-    millis_irq_handler();
   }
 }
 
@@ -134,6 +128,14 @@ uint8_t get_als_value(void)
   return als_value;
 }
 
+static void flash_led(void)
+{
+  turn_led_on();
+  LPM_SLEEP(74_47MS);
+  turn_led_off();
+  LPM_SLEEP(148_95MS);
+}
+
 // Main program
 void main()
 {
@@ -156,7 +158,6 @@ void main()
 
   // pwm_init();                                          // Initialize the PWM
   // comparator_init();
-  millis_setup();
 
   // Leave ALS ON
   turn_als_on();
@@ -172,17 +173,11 @@ void main()
   // Main processing loop
   while (1) {
 
-    // uint32_t currentMillis = millis();
-    // if (currentMillis - previousMillis > BLINK_INTERVAL) {
-    turn_led_on();
-    _delay_ms(500);
-    turn_led_off();
-      // previousMillis += BLINK_INTERVAL;
-    // }
-    sleep();
+    flash_led();
+    flash_led();
+    LPM_SLEEP(2383_13MS);
+
     // uint8_t als_value = get_als_value();
-
-
     // if (als_value >  10) {
     //   turn_led_on();
     //   // serial_println("Is Dark");
