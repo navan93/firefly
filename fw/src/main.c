@@ -43,6 +43,8 @@
 // ALS will read high in dark, so define helper for better readability below
 #define isDark()    (PA & (1 << ALS_SENSE_PIN))
 
+static uint8_t darkness;
+
 void interrupt(void) __interrupt(0) {
   if (INTRQ & INTRQ_TM2) {      // TM2 interrupt request?
     INTRQ &= ~INTRQ_TM2;        // Mark TM2 interrupt request processed
@@ -117,14 +119,19 @@ uint8_t get_als_value(void)
 {
   uint8_t als_value = 0x00;
 
+  turn_als_on();
+
   while(als_value <= 0x0F) {
     GPCS = (uint8_t)(GPCS_COMP_RANGE4 | als_value);
     _delay_ms(1);
     if (GPCC & GPCC_COMP_RESULT_POSITIVE) { // PA4 < Vref
-      break;;
+      break;
     }
     als_value++;
   }
+
+  turn_als_off();
+
   return als_value;
 }
 
@@ -157,10 +164,11 @@ void main()
   // PAPH |= (1 << ALS_SENSE_PIN);         // Enable pull-up resistor for ALS
 
   // pwm_init();                                          // Initialize the PWM
-  // comparator_init();
+  comparator_init();
 
-  // Leave ALS ON
-  turn_als_on();
+  turn_als_off();
+  turn_led_off();
+
 
   // serial_setup();                 // Initialize Serial engine
   INTRQ = 0;
@@ -169,23 +177,23 @@ void main()
 
   // serial_println("Firefly Initialized");
 
+  darkness = 0;
 
   // Main processing loop
   while (1) {
 
-    flash_led();
-    flash_led();
-    LPM_SLEEP(2383_13MS);
-
-    // uint8_t als_value = get_als_value();
-    // if (als_value >  10) {
-    //   turn_led_on();
+    uint8_t als_value = get_als_value();
+    if (als_value >  10) {
+      // turn_led_on();
+      flash_led();
+      flash_led();
     //   // serial_println("Is Dark");
-    // }
+    }
     // else {
-    //   turn_led_off();
+      // turn_led_off();
     //   // serial_println("Not Dark");
     // }
+    LPM_SLEEP(2383_13MS);
 
     // als_value = (als_value < 10) ? (als_value + '0') : (als_value - 10 + 'A');
     // serial_println(&als_value);
