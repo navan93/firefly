@@ -1,7 +1,8 @@
 {
     "files.associations": {
         "device.h": "c",
-        "pfs154.h": "c"
+        "pfs154.h": "c",
+        "delay.h": "c"
     },
     "makefile.makefilePath": "fw/src/Makefile",
     "C_Cpp.default.compilerPath": "/usr/local/bin/sdcc"
